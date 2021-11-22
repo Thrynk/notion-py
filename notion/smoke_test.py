@@ -1,8 +1,32 @@
 from datetime import datetime
+from time import sleep
 
 from .client import *
 from .block import *
 from .collection import NotionDate
+from .logger import enable_debugging
+
+def run_live_callback_test(token_v2, parent_page_url_or_id):
+
+    enable_debugging()
+
+    client = NotionClient(
+        token_v2=token_v2,
+        monitor=True,
+        start_monitoring=True)
+
+    parent_page = client.get_block(parent_page_url_or_id)
+
+    def test_callback(record, difference):
+        print(difference)
+
+    parent_page.add_callback(test_callback)
+
+    while True:
+        print(parent_page.title)
+        print(parent_page.children)
+
+        sleep(3)
 
 
 def run_live_smoke_test(token_v2, parent_page_url_or_id):

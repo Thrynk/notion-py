@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import threading
 import uuid
 
@@ -34,6 +35,7 @@ class Callback(object):
         self.extra_kwargs = extra_kwargs
 
     def __call__(self, difference, old_val, new_val):
+        logger.debug("Call function of callback : {}".format(self.callback_id))
         kwargs = {}
         kwargs.update(self.extra_kwargs)
         kwargs["record"] = self.record
@@ -95,6 +97,7 @@ class RecordStore(object):
             callback
         ), "The callback must be a 'callable' object, such as a function."
         self.remove_callbacks(record._table, record.id, callback_id)
+        logger.debug("Adding callback : {} to store : record {}".format(callback, record))
         callback_obj = Callback(
             callback, record, callback_id=callback_id, extra_kwargs=extra_kwargs
         )
@@ -167,8 +170,10 @@ class RecordStore(object):
             json.dump(getattr(self, attribute), f)
 
     def _trigger_callbacks(self, table, id, difference, old_val, new_val):
+        logger.debug("Trigger callbacks of {}/{}".format(table, id))
+        logger.debug("Number of callbacks in store : {}".format(len(self._callbacks[table][id])))
         for callback_obj in self._callbacks[table][id]:
-            callback_obj(difference, old_val, new_val)
+            callback_obj.__call__(difference, old_val, new_val)
 
     def get_role(self, table, id, force_refresh=False):
         self.get(table, id, force_refresh=force_refresh)
@@ -193,12 +198,12 @@ class RecordStore(object):
 
         with self._mutex:
             if role:
-                logger.debug("Updating 'role' for {}/{} to {}".format(table, id, role))
+                logger.debug("Updating 'role' for {}/{} to {}".format(table, id, role).encode('utf-8'))
                 self._role[table][id] = role
                 self._save_cache("_role")
             if value:
                 logger.debug(
-                    "Updating 'value' for {}/{} to {}".format(table, id, value)
+                    "Updating 'value' for {}/{} to {}".format(table, id, value).encode('utf-8')
                 )
                 old_val = self._values[table][id]
                 difference = list(
@@ -212,10 +217,12 @@ class RecordStore(object):
                 self._values[table][id] = value
                 self._save_cache("_values")
                 if old_val and difference:
-                    logger.debug("Value changed! Difference: {}".format(difference))
+                    logger.debug("Value changed! Difference: {}".format(difference).encode('utf-8'))
                     callback_queue.append((table, id, difference, old_val, value))
 
         # run callbacks outside the mutex to avoid lockups
+        logger.debug("Firing callbacks from _update_record")
+        logger.debug("Number of callbacks : {}".format(len(callback_queue)))
         for cb in callback_queue:
             self._trigger_callbacks(*cb)
 
@@ -310,6 +317,7 @@ class RecordStore(object):
         sort=[],
         calendar_by="",
         group_by="",
+        limit=50
     ):
 
         assert not (
@@ -323,21 +331,26 @@ class RecordStore(object):
             sort = [sort]
 
         data = {
-            "collectionId": collection_id,
-            "collectionViewId": collection_view_id,
-            "loader": {
-                "limit": 10000,
-                "loadContentCover": True,
-                "searchQuery": search,
-                "userLocale": "en",
-                "userTimeZone": str(get_localzone()),
-                "type": type,
+            "collection": {
+                "id": collection_id,
+                "spaceId": self._client.current_space.id
             },
-            "query": {
-                "aggregate": aggregate,
-                "aggregations": aggregations,
-                "filter": filter,
-                "sort": sort,
+            "collectionView": {
+                "id": collection_view_id,
+                "spaceId": self._client.current_space.id
+            },
+            "loader": {
+                'filter': filter,
+                'reducers': {
+                    'collection_group_results': {
+                        'limit': limit,
+                        'type': 'results',
+                    },
+                },
+                "searchQuery": search,
+                'sort': sort,
+                "userTimeZone": str(get_localzone()),
+                "type": 'reducer',
             },
         }
 
@@ -360,10 +373,10 @@ class RecordStore(object):
         """
         Called to simulate the results of running the operations on the server, to keep the record store in sync
         even when we haven't completed a refresh (or we did a refresh but the database hadn't actually updated yet...)
-        """
         for operation in operations:
             self.run_local_operation(**operation)
 
+        """
     def run_local_operation(self, table, id, path, command, args):
 
         with self._mutex:
