@@ -23,7 +23,7 @@ if NOTIONPY_LOG_LEVEL == "disabled":
     logger.addHandler(handler)
 else:
     handler = logging.FileHandler(LOG_FILE)
-    formatter = logging.Formatter("\n%(asctime)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter("\n%(asctime)s - %(filename)s - %(module)s - %(funcName)s - %(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 

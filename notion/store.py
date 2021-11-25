@@ -101,7 +101,12 @@ class RecordStore(object):
         callback_obj = Callback(
             callback, record, callback_id=callback_id, extra_kwargs=extra_kwargs
         )
+        logger.debug("table : {}".format(record._table))
+        logger.debug("id : {}".format(record.id))
+        logger.debug("Adding callback to store...")
         self._callbacks[record._table][record.id].append(callback_obj)
+        logger.debug("Store callbacks : {}".format(self._callbacks))
+        logger.debug("Record callbacks : {}".format(self._callbacks[record._table][record.id]))
         return callback_obj
 
     def remove_callbacks(self, table, id, callback_or_callback_id_prefix=""):
@@ -109,6 +114,7 @@ class RecordStore(object):
         Remove all callbacks for the record specified by `table` and `id` that have a callback_id
         starting with the string `callback_or_callback_id_prefix`, or are equal to the provided callback.
         """
+        logger.debug("Removing callbacks of table : {} and record : {}, callback : {}".format(table, id, callback_or_callback_id_prefix))
         if callback_or_callback_id_prefix is None:
             return
         callbacks = self._callbacks[table][id]
