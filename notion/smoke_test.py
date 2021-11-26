@@ -6,8 +6,9 @@ from .client import *
 from .block import *
 from .collection import NotionDate
 from .logger import enable_debugging
+from .utils import extract_id
 
-def run_live_callback_test(token_v2, parent_page_url_or_id):
+def run_live_block_callback_test(token_v2, page_url_or_id):
 
     enable_debugging()
 
@@ -18,7 +19,7 @@ def run_live_callback_test(token_v2, parent_page_url_or_id):
 
     callback_ran = Event()
 
-    parent_page = client.get_block(parent_page_url_or_id)
+    parent_page = client.get_block(page_url_or_id)
 
     def test_callback(record, difference, callback_ran):
         assert difference is not None
@@ -26,10 +27,38 @@ def run_live_callback_test(token_v2, parent_page_url_or_id):
 
     parent_page.add_callback(test_callback, None, {"callback_ran": callback_ran})
 
-    print("Waiting for page change...")
+    print("Waiting for block page change...")
     callback_ran.wait()
     print("Test passed !")
 
+def run_live_collection_callback_test(token_v2, page_url_or_id):
+
+    enable_debugging()
+
+    client = NotionClient(
+        token_v2=token_v2,
+        monitor=True,
+        start_monitoring=True)
+
+    callback_ran = Event()
+
+    print(extract_id(page_url_or_id))
+
+    block = client.get_block(page_url_or_id)
+    collection_id = block.collection.id
+
+    collection_page = client.get_collection(collection_id)
+
+    print(collection_page.name)
+    def test_callback(record, difference, callback_ran):
+        assert difference is not None
+        callback_ran.set()
+
+    collection_page.add_callback(test_callback, None, {"callback_ran": callback_ran})
+
+    print("Waiting for collection page change...")
+    callback_ran.wait()
+    print("Test passed !")
 
 def run_live_smoke_test(token_v2, parent_page_url_or_id):
 
