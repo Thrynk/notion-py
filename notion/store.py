@@ -179,7 +179,7 @@ class RecordStore(object):
         logger.debug("Trigger callbacks of {}/{}".format(table, id))
         logger.debug("Number of callbacks in store : {}".format(len(self._callbacks[table][id])))
         for callback_obj in self._callbacks[table][id]:
-            callback_obj.__call__(difference, old_val, new_val)
+            callback_obj(difference, old_val, new_val)
 
     def get_role(self, table, id, force_refresh=False):
         self.get(table, id, force_refresh=force_refresh)
@@ -290,7 +290,7 @@ class RecordStore(object):
 
         data = {
             "pageId": page_id,
-            "limit": 100000,
+            "limit": 30,
             "cursor": {"stack": []},
             "chunkNumber": 0,
             "verticalColumns": False,

@@ -1,5 +1,6 @@
 from datetime import datetime
 from time import sleep
+from threading import Event
 
 from .client import *
 from .block import *
@@ -15,18 +16,19 @@ def run_live_callback_test(token_v2, parent_page_url_or_id):
         monitor=True,
         start_monitoring=True)
 
+    callback_ran = Event()
+
     parent_page = client.get_block(parent_page_url_or_id)
 
-    def test_callback(record, difference):
-        print(difference)
+    def test_callback(record, difference, callback_ran):
+        assert difference is not None
+        callback_ran.set()
 
-    parent_page.add_callback(test_callback)
+    parent_page.add_callback(test_callback, None, {"callback_ran": callback_ran})
 
-    while True:
-        print(parent_page.title)
-        print(parent_page.children)
-
-        sleep(3)
+    print("Waiting for page change...")
+    callback_ran.wait()
+    print("Test passed !")
 
 
 def run_live_smoke_test(token_v2, parent_page_url_or_id):
