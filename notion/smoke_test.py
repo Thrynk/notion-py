@@ -42,19 +42,25 @@ def run_live_collection_callback_test(token_v2, page_url_or_id):
 
     callback_ran = Event()
 
-    print(extract_id(page_url_or_id))
-
-    block = client.get_block(page_url_or_id)
-    collection_id = block.collection.id
-
-    collection_page = client.get_collection(collection_id)
-
-    print(collection_page.name)
-    def test_callback(record, difference, callback_ran):
+    def test_callback(record, difference, changes, callback_ran):
         assert difference is not None
+        print(difference)
+        print(changes)
         callback_ran.set()
 
-    collection_page.add_callback(test_callback, None, {"callback_ran": callback_ran})
+    print("Getting collection from server...")
+    block = client.get_block(page_url_or_id)
+
+    collection = block.collection
+
+    # Add callback to collection, if a collection property change, callback is fired
+    collection.add_callback(test_callback, None, {"callback_ran": callback_ran})
+
+    # Add callback to collection rows, if a property of a CollectionRowBlock change, callback is fired
+    print("Getting collection rows from server...")
+    collection_rows = collection.get_rows()
+    for collection_row in collection_rows:
+        collection_row.add_callback(test_callback, None, {"callback_ran": callback_ran})
 
     print("Waiting for collection page change...")
     callback_ran.wait()
